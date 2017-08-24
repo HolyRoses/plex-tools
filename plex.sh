@@ -31,7 +31,12 @@ results_file="/var/tmp/plex-results-${job_id}.txt"
 #time="-t 5"
 time=""
 #frame_rate="-r 24000/1001"
+# leave frame rate unmodified (except for 720p currently)
 frame_rate=""
+# downgrade 1080i to 720p
+downgrade_1080i="true"
+# downgrade 720p from 60fps to 30fps and level to 3.1
+downgrade_720p="true"
 
 >$results_file
 echo "$@" >>$results_file
@@ -188,24 +193,32 @@ if [ $height -eq 1080 ] ; then
 	#frame_rate=""
 	#frame_rate="-r 24000/1001"
 	size=""
-	filter="-vf yadif=0:-1:0"
 	audio_codec="aac -ac 2 -ab 192000"
 	movflags="-movflags faststart"
 	aspect=""
-	crf=20
+	crf=19
 	preset="veryfast"
-	# 1280x720 30fps
-	#level="3.1"
-	# 1280x720 60fps
-	#level="3.2"
-	# 1920x1080 30fps
-	level="4.0"
-	# 1920x1080 30fps (higher bitrates)
-	#level="4.1"
+
+	if [ "$downgrade_1080i" = "true" ] ; then
+		# deinterlace and reduce to 720
+		filter="-vf yadif=0:-1:0,scale=1280:720"
+		# may need to issue this, but it should already be at 30fps if it was 1080i
+		#frame_rate="-r 30000/1001"
+		# 1280x720 30fps
+		level="3.1"
+		# 1280x720 60fps
+		#level="3.2"
+	else
+		# convert to 1080p via deinterlace
+		filter="-vf yadif=0:-1:0"
+		# 1920x1080 30fps
+		# Samsung - Galaxy Tab A needs level 4.0
+		level="4.0"
+		# 1920x1080 30fps (higher bitrates)
+		#level="4.1"
+	fi
 
 	queue_job
-	# reduced level from 4.1 to 4.0
-	# improves compatibility with Samsung - Galaxy Tab A
 	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
@@ -215,22 +228,25 @@ fi
 if [ $height -eq 720 ] ; then
 	#frame_rate=""
 	#frame_rate="-r 24000/1001"
-	frame_rate="-r 30000/1001"
 	size=""
 	filter=""
 	audio_codec="aac -ac 2 -ab 192000"
 	movflags="-movflags faststart"
 	aspect=""
-	crf=20
+	crf=19
 	preset="veryfast"
-	# 1280x720 30fps
-	level="3.1"
-	# 1280x720 60fps
-	#level="3.2"
-	# 1920x1080 30fps
-	#level="4.0"
-	# 1920x1080 30fps (higher bitrates)
-	#level="4.1"
+
+	if [ "$downgrade_720p" = "true" ] ; then
+		#reduce frame rate from 60fps to 30fps
+		frame_rate="-r 30000/1001"
+		# 1280x720 30fps
+		level="3.1"
+	else
+		#this value should already be set in stream
+		#frame_rate="-r 60000/1001"
+		# 1280x720 60fps
+		level="3.2"
+	fi
 
 	# Friends is broadcasted interlaced in 720p on WMYD
 	shows="Friends"
@@ -245,7 +261,6 @@ if [ $height -eq 720 ] ; then
 	#fi
 
 	queue_job
-	# reduced level from 4.1 to 3.2
 	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
