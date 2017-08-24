@@ -86,7 +86,20 @@ queue_job () {
 	current_job=$(head -1 "${plex_tickets}")
 
 	while [ $job_id -ne $current_job ] ; do
+		depth=0
 		echo "Job: ${job_id} is not ready.  Job: ${current_job} is running" >>$results_file
+
+		while IFS= read -r ; do
+			ticket=$REPLY
+			let depth++
+			if [ ${job_id} -eq ${ticket} ] ; then
+				position=${depth}
+				#break
+			fi
+		done < "${plex_tickets}"
+		#depth=$(wc -l $plex_tickets | awk '{print $1}')
+
+		echo "Job: ${job_id} queue position ${position} of ${depth}." >>$results_file
 		echo "Sleeping ${job_wait_timer} seconds" >>$results_file
 		sleep ${job_wait_timer}
 		current_job=$(head -1 "${plex_tickets}")
@@ -196,7 +209,7 @@ if [ $height -eq 1080 ] ; then
 	audio_codec="aac -ac 2 -ab 192000"
 	movflags="-movflags faststart"
 	aspect=""
-	crf=19
+	crf=17
 	preset="veryfast"
 
 	if [ "$downgrade_1080i" = "true" ] ; then
@@ -233,7 +246,7 @@ if [ $height -eq 720 ] ; then
 	audio_codec="aac -ac 2 -ab 192000"
 	movflags="-movflags faststart"
 	aspect=""
-	crf=19
+	crf=17
 	preset="veryfast"
 
 	if [ "$downgrade_720p" = "true" ] ; then
