@@ -132,8 +132,15 @@ IFS=$OLDIFS
 if [ "$transcode_dvr" = "true" ] ; then
 	#frame_rate=""
 	#frame_rate="-r 24000/1001"
-	filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=720:480"
+	# scale everything to 480p
+	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=720:480"
+	# scale everything to widescreen 640:480
 	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480"
+	# probably makes most sense to use this scale, all these sources are scaled to 640 width anyhow due to sar settings.
+	# this would give a 1:1 sar and a smaller file
+	filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:360"
+	# fancy way to calculate 360
+	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:ceil((out_w/dar/2)*2)"
 	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120"
 	#size="-s 720x480"
 	size=""
@@ -154,13 +161,21 @@ if [ "$transcode_dvr" = "true" ] ; then
 	# These shows play letterboxed 16:9 when they are actually 4:3
 	shows="Charmed|Married"
 	if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
-		filter="$filter -aspect 4:3"
+		# this is filter line if using 640:480 or 720:480 frames
+		#filter="$filter -aspect 4:3"
+		# use this filter if using the above 1:1 sar 640x360
+		filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480 -aspect 4:3"
 	fi
 
 	# These shows do not need cropping and are 4:3
-	shows="SpongeBob"
+	# Will & Grace plays on WEtv in 4:3
+	# not all episodes of SpongeBob play in 4:3 :(
+	shows="SpongeBob|Will & Grace"
 	if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
-		filter="-vf yadif=0:-1:0,scale=720:480"
+		# scale to 480p
+		#filter="-vf yadif=0:-1:0,scale=720:480"
+		# scale to 640:480
+		filter="-vf yadif=0:-1:0,scale=640:480"
 	fi
 
 	queue_job
@@ -215,6 +230,8 @@ if [ $height -eq 1080 ] ; then
 	if [ "$downgrade_1080i" = "true" ] ; then
 		# deinterlace and reduce to 720
 		filter="-vf yadif=0:-1:0,scale=1280:720"
+		# 960:540 idea
+		#filter="-vf yadif=0:-1:0,scale=iw/2:-1"
 		# may need to issue this, but it should already be at 30fps if it was 1080i
 		#frame_rate="-r 30000/1001"
 		# 1280x720 30fps
