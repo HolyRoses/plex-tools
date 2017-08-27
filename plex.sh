@@ -167,6 +167,12 @@ if [ "$transcode_dvr" = "true" ] ; then
 		filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480 -aspect 4:3"
 	fi
 
+	# Need to think about shows that are broadcasted 4:3 encased in a 16:9 frame (pillar boxed)
+	# Removing 120 pixels from height and scaling to 640x360 produces a 16:9 pillar boxed video.
+	# Need to remove pillar boxing.  However we are not using 1:1 SAR so calculating a width crop value could prove difficult unless it was
+	# scaled first.  The proper sizing would be 480x360. We could probe the incoming signal to determine its SAR and calculate a proper horizontal crop.
+	# Outlaw star is such a video that needs cropping to 4:3.  The shows above do not need horizontal cropping, they just needed AR correction.
+
 	# These shows do not need cropping and are 4:3
 	# Will & Grace plays on WEtv in 4:3
 	# not all episodes of SpongeBob play in 4:3 :(
@@ -227,9 +233,20 @@ if [ $height -eq 1080 ] ; then
 	crf=17
 	preset="veryfast"
 
+	# 4:3 shows broadcasted pillar boxed in 16:9
+	# Season 13 of King of the Hill was broadcast in 16:9, so may want to improve this regex
+	# Reason for cropping these 16:9 signals is so that on non 16:9 screens they will zoom or play properly.  Otherwise will play in center of screen.
+	# King of the Hill plays on WADL, Family Guy plays on CW50, On Fox Family Guy plays in 16:9
+	shows="King of the Hill|Family Guy"
+
 	if [ "$downgrade_1080i" = "true" ] ; then
-		# deinterlace and reduce to 720
-		filter="-vf yadif=0:-1:0,scale=1280:720"
+		if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
+			# crop and scale to 4:3 720p (960x720)
+			filter="-vf yadif=0:-1:0,crop=in_h*(4/3):in_h,scale=oh*(4/3):720"
+		else
+			# deinterlace and reduce to 720p
+			filter="-vf yadif=0:-1:0,scale=1280:720"
+		fi
 		# 960:540 idea
 		#filter="-vf yadif=0:-1:0,scale=iw/2:-1"
 		# may need to issue this, but it should already be at 30fps if it was 1080i
@@ -239,8 +256,13 @@ if [ $height -eq 1080 ] ; then
 		# 1280x720 60fps
 		#level="3.2"
 	else
-		# convert to 1080p via deinterlace
-		filter="-vf yadif=0:-1:0"
+		if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
+			# crop to 4:3 1080p (1440x1080)
+			filter="-vf yadif=0:-1:0,crop=in_h*(4/3):in_h"
+		else
+			# convert to 1080p via deinterlace
+			filter="-vf yadif=0:-1:0"
+		fi
 		# 1920x1080 30fps
 		# Samsung - Galaxy Tab A needs level 4.0
 		level="4.0"
