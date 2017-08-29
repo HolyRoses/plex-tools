@@ -167,11 +167,15 @@ if [ "$transcode_dvr" = "true" ] ; then
 		filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480 -aspect 4:3"
 	fi
 
-	# Need to think about shows that are broadcasted 4:3 encased in a 16:9 frame (pillar boxed)
-	# Removing 120 pixels from height and scaling to 640x360 produces a 16:9 pillar boxed video.
-	# Need to remove pillar boxing.  However we are not using 1:1 SAR so calculating a width crop value could prove difficult unless it was
-	# scaled first.  The proper sizing would be 480x360. We could probe the incoming signal to determine its SAR and calculate a proper horizontal crop.
-	# Outlaw star is such a video that needs cropping to 4:3.  The shows above do not need horizontal cropping, they just needed AR correction.
+	# Filter below is to crop a 4:3 frame, that is encased inside a 16:9 frame, which is encased inside a 4:3 frame.
+	# Basic formula is actually quite simple, example:  =528-480/40*33 = 132 crop value
+	# This will take any non square pixel 4:3 source and crop out the 480x360 square inside
+	# Outlaw Star (1998) needs this filter
+	# This is the most advanced filter in script, others probably should be remodeled to work more like this, especially the scaling.
+	shows="Outlaw Star"
+	if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
+		filter="-vf yadif=0:-1:0,crop=in_h/sar:in_h/dar,scale=iw*sar:ih"
+	fi
 
 	# These shows do not need cropping and are 4:3
 	# Will & Grace plays on WEtv in 4:3
