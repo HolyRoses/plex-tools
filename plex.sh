@@ -138,7 +138,9 @@ if [ "$transcode_dvr" = "true" ] ; then
 	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480"
 	# probably makes most sense to use this scale, all these sources are scaled to 640 width anyhow due to sar settings.
 	# this would give a 1:1 sar and a smaller file
-	filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:360"
+	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:360"
+	# new filter
+	filter="-vf yadif=0:-1:0,crop=in_w:in_h/dar,scale=ih*16/9:ih"
 	# fancy way to calculate 360
 	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:ceil((out_w/dar/2)*2)"
 	#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120"
@@ -158,15 +160,24 @@ if [ "$transcode_dvr" = "true" ] ; then
 	# 720x480 30fps
 	level="3.0"
 
-	# These shows play letterboxed 16:9 when they are actually 4:3
+	# These shows play letterboxed 16:9 when they are actually 4:3 (no pillar box, when it should be pillar boxed)
 	shows="Charmed|Married"
 	if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
-		# this is filter line if using 640:480 or 720:480 frames
+		# this is filter line if using 640:480 or 720:480 frames (from above)
 		#filter="$filter -aspect 4:3"
 		# use this filter if using the above 1:1 sar 640x360
-		filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480 -aspect 4:3"
+		# this should probably be 480x360 as we are cropping to 360 height, snapping it inwards would make it 480, need run a test against material
+		# better yet, re-write this to not use digits, to make more universal
+		# original filter
+		#filter="-vf yadif=0:-1:0,crop=in_w:in_h-120,scale=640:480 -aspect 4:3"
+		# rewrite, should scale to 480x360 if provided a 640:480 frame and also do an aspect ratio correction, otherwise we would have a 16:9 image inside that 4:3 box
+		# if provided a 1440x1080 image it would generate a 1080x810 image, a 960x720 image would generate a 720x540 output
+		# if ran against non wide stretched material, then this will shrink things inward and people will look squished
+		#filter="-vf yadif=0:-1:0,crop=in_w:in_h/dar,scale=iw/(4/3):ih -aspect 4:3"
+		filter="-vf yadif=0:-1:0,crop=in_w:in_h/dar,scale=ih*4/3:ih -aspect 4:3"
 	fi
 
+	# This crops a 4:3 picture out of a 16:9 pillar boxed frame (which is also encased in a 4:3 frame)
 	# Filter below is to crop a 4:3 frame, that is encased inside a 16:9 frame, which is encased inside a 4:3 frame.
 	# Basic formula is actually quite simple, example:  =528-480/40*33 = 132 crop value
 	# This will take any non square pixel 4:3 source and crop out the 480x360 square inside
@@ -185,7 +196,10 @@ if [ "$transcode_dvr" = "true" ] ; then
 		# scale to 480p
 		#filter="-vf yadif=0:-1:0,scale=720:480"
 		# scale to 640:480
-		filter="-vf yadif=0:-1:0,scale=640:480"
+		#filter="-vf yadif=0:-1:0,scale=640:480"
+		#this scale is not always, if input was 16:9 and 480 height, then it would produce 853 width, which would fail.
+		#in this case though we know the input is always going to be 480 and a width of 640
+		filter="-vf yadif=0:-1:0,scale=ih*dar:ih"
 	fi
 
 	queue_job
