@@ -18,8 +18,18 @@
 #
 
 # adjust per need
-ffprobe="/volume1/@appstore/ChannelsDVR/channels-dvr/latest/ffprobe"
-ffmpeg="/var/packages/EmbyServer/target/ffmpeg/bin/ffmpeg_real"
+#
+# path where plex stores its external decoding and encoding libraries, not sure why they are using external libs
+# by default the permissions in this path are not readable unless you are plex user
+FFMPEG_EXTERNAL_LIBS="/volume1/Plex/Library/Application Support/Plex Media Server/Codecs/798f007-1247-linux-synology-i686/" ; export FFMPEG_EXTERNAL_LIBS
+# have to set this because their ffmpeg isn't statically linked.
+LD_LIBRARY_PATH="/volume1/@appstore/Plex Media Server/" ; export LD_LIBRARY_PATH
+# renamed ffmpeg
+ffmpeg="/volume1/@appstore/Plex Media Server/Plex Transcoder"
+ffprobe="$ffmpeg"
+# original ffmpeg/ffprobe I was using
+#ffprobe="/volume1/@appstore/ChannelsDVR/channels-dvr/latest/ffprobe"
+#ffmpeg="/var/packages/EmbyServer/target/ffmpeg/bin/ffmpeg_real"
 # plex tickets location
 plex_tickets="/var/tmp/plex_tickets.txt"
 job_id=$$
@@ -42,18 +52,27 @@ downgrade_720p="true"
 echo "$@" >>$results_file
 
 echo "$1" >> /var/tmp/plex_post_processing_files.txt
+# may want to look at using bash substring replacment
+# http://www.tldp.org/LDP/abs/html/string-manipulation.html
+#output=${1//.ts/.mp4}
 output="$(echo "$1" | sed "s#\.mpg\$#\.mp4#" | sed "s#\.ts\$#\.mp4#" | sed "s#\.mkv\$#\.mp4#")"
 filename="$(basename "$1")"
 
-video=$($ffprobe -hide_banner -i "$1" 2>&1 | egrep " Video: ")
+video=$("$ffprobe" -hide_banner -i "$1" 2>&1 | egrep " Video: ")
 format=$(echo $video | sed 's#.* \([[:digit:]]\+x[[:digit:]]\+ [SAR [[:digit:]]\+:[[:digit:]]\+ DAR [[:digit:]]\+:[[:digit:]]\+]\).*#\1#')
 height=$(echo $format | sed "s#[[:digit:]]\+x\([[:digit:]]\+\) .*#\1#")
 
 # /var/packages/EmbyServer/target/ffmpeg/bin/ffmpeg_real -h encoder=libx264
 # some options to transform preset to even faster
-# not yet added to encode lines, this is the preset additional overrides from emby
-encode_opts="-x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none"
-#encode_opts=""
+# not yet added to encode lines, this is the preset additional overrides provided from Plex or Emby
+#https://support.plex.tv/hc/en-us/articles/200250347-Transcoder
+#Prefer higher speed encoding:
+#encode_opts="-x264opts subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none"
+#Prefer higher quality encoding:
+#encode_opts="-x264opts subme=0:me_range=4:rc_lookahead=10:me=hex:8x8dct=0:partitions=none"
+#Make my CPU hurt:
+#encode_opts="-x264opts subme=2:me_range=4:rc_lookahead=10:me=hex:8x8dct=1"
+encode_opts=""
 
 # 4:3 SD AR's
 crop_list="
@@ -197,13 +216,13 @@ if [ "$transcode_dvr" = "true" ] ; then
 		#filter="-vf yadif=0:-1:0,scale=720:480"
 		# scale to 640:480
 		#filter="-vf yadif=0:-1:0,scale=640:480"
-		#this scale is not always, if input was 16:9 and 480 height, then it would produce 853 width, which would fail.
+		#this scale is not always safe, if input was 16:9 and 480 height, then it would produce 853 width, which would fail.
 		#in this case though we know the input is always going to be 480 and a width of 640
 		filter="-vf yadif=0:-1:0,scale=ih*dar:ih"
 	fi
 
 	queue_job
-	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
+	"$ffmpeg" -hide_banner -i "$1" -vcodec libx264 -preset ${preset} $encode_opts -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
 fi
@@ -235,7 +254,7 @@ if [ "$transcode_dvr" = "true" ] ; then
 	level="3.0"
 
 	queue_job
-	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
+	"$ffmpeg" -hide_banner -i "$1" -vcodec libx264 -preset ${preset} $encode_opts -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
 fi
@@ -289,7 +308,7 @@ if [ $height -eq 1080 ] ; then
 	fi
 
 	queue_job
-	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
+	"$ffmpeg" -hide_banner -i "$1" -vcodec libx264 -preset ${preset} $encode_opts -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
 fi
@@ -331,7 +350,7 @@ if [ $height -eq 720 ] ; then
 	#fi
 
 	queue_job
-	$ffmpeg -hide_banner -i "$1" -vcodec libx264 -preset ${preset} -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
+	"$ffmpeg" -hide_banner -i "$1" -vcodec libx264 -preset ${preset} $encode_opts -level ${level} -profile:v high -crf $crf $filter $movflags -acodec $audio_codec $size $aspect $frame_rate $time -y "$output" >>$results_file 2>&1
 	rm "$1"
 	remove_job
 fi
