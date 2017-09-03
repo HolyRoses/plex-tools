@@ -180,7 +180,10 @@ if [ "$transcode_dvr" = "true" ] ; then
 	level="3.0"
 
 	# These shows play letterboxed 16:9 when they are actually 4:3 (no pillar box, when it should be pillar boxed)
-	shows="Charmed|Married"
+	# Family Guy on TOON (Adult Swim) plays stretched 16:9, its a 4:3 show
+	# Charmed on TNT plays stretched 16:9, its a 4:3 show
+	# Married ... With Children on TBS plays stretched 16:9, its a 4:3 show
+	shows="Charmed|Married|Family Guy"
 	if echo $filename | egrep "^(${shows})" >/dev/null 2>&1 ; then
 		# this is filter line if using 640:480 or 720:480 frames (from above)
 		#filter="$filter -aspect 4:3"
