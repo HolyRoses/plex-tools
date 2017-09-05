@@ -14,6 +14,10 @@
 # 30000	1001	29.97002997	480i broadcast (-r 30000/1001)
 # 24000	1001	23.97602398	film (-r 24000/1001)
 #
+# https://ffmpeg.org/ffmpeg-filters.html#fps-1
+# the -r option is deprecated
+# Should consider switching to video filter "fps" -vf fps=fps=24000/1001
+#
 # -pix_fmt yuv420p or -vf format=yuv420p
 #
 
@@ -180,6 +184,7 @@ if [ "$transcode_dvr" = "true" ] ; then
 	level="3.0"
 
 	# These shows play letterboxed 16:9 when they are actually 4:3 (no pillar box, when it should be pillar boxed)
+	# Of note all of these shows play on Turner owned networks
 	# Family Guy on TOON (Adult Swim) plays stretched 16:9, its a 4:3 show
 	# Charmed on TNT plays stretched 16:9, its a 4:3 show
 	# Married ... With Children on TBS plays stretched 16:9, its a 4:3 show
