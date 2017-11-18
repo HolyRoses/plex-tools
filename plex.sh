@@ -29,11 +29,17 @@ FFMPEG_EXTERNAL_LIBS="/volume1/Plex/Library/Application Support/Plex Media Serve
 # have to set this because their ffmpeg isn't statically linked.
 LD_LIBRARY_PATH="/volume1/@appstore/Plex Media Server/" ; export LD_LIBRARY_PATH
 # renamed ffmpeg
-ffmpeg="/volume1/@appstore/Plex Media Server/Plex Transcoder"
-ffprobe="$ffmpeg"
+# Plex ffmpeg may have issues.  It mis-identified the format of this video
+#Input #0, mpegts, from './Bob's Burgers (2011) - S04E20 - Gene It On.ts':
+#Stream #0:0[0x100]: Video: mpeg2video (Main) ([2][0][0][0] / 0x0002), yuv420p(tv, top first), 528x480 [SAR 10:11 DAR 1:1], Closed Captions, 29.97 fps, 59.94 tbr, 90k tbn, 59.94 tbc
+# it is actually
+#Stream #0:0[0x100]: Video: mpeg2video (Main) ([2][0][0][0] / 0x0002), yuv420p(tv, top first), 528x480 [SAR 40:33 DAR 4:3], Closed Captions, 29.97 fps, 59.94 tbr, 90k tbn, 59.94 tbc
+# failed on an episode of Hunter X Hunter (2011) and 2 more Bob's Burgers, so just disabling for now.
+#ffmpeg="/volume1/@appstore/Plex Media Server/Plex Transcoder"
+#ffprobe="$ffmpeg"
 # original ffmpeg/ffprobe I was using
-#ffprobe="/volume1/@appstore/ChannelsDVR/channels-dvr/latest/ffprobe"
-#ffmpeg="/var/packages/EmbyServer/target/ffmpeg/bin/ffmpeg_real"
+ffprobe="/volume1/@appstore/ChannelsDVR/channels-dvr/latest/ffprobe"
+ffmpeg="/var/packages/EmbyServer/target/ffmpeg/bin/ffmpeg_real"
 # plex tickets location
 plex_tickets="/var/tmp/plex_tickets.txt"
 job_id=$$
